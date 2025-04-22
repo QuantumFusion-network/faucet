@@ -9,9 +9,9 @@ import { web3FromSource, web3Enable, web3FromAddress } from '@polkadot/extension
 import { Keyring } from '@polkadot/keyring';
 
 
-const FAUCET_AMOUNT = '20000000000';
+const FAUCET_AMOUNT = '2000000000000000000';
 
-const RPC_URL = 'wss://dev.qfnetwork.xyz/socket';
+const RPC_URL = 'wss://test.qfnetwork.xyz/';
 
 const Step = ({ number, title, children, isOpen, toggle }) => (
   <div className="border rounded-xl px-5 py-4 bg-white">
@@ -203,21 +203,40 @@ const FaucetStep = () => {
       if (!account || !api) return;
 
       try {
-          setLoading(true);
-          setStatus('Requesting tokens...');
+        setLoading(true);
+        setStatus('Requesting tokens...');
 
+        console.log("web3FromSource()", account);
 
-          const url = import.meta.env;
+        const allInjected = await web3Enable('QFN/faucet');
 
-          if(!url) {
-            setStatus('Api url not provided ');
-            setLoading(false);
-            return
-          }
+        // Make the actual faucet request
+        const MNEMONIC = 'poet heart pole ring honey renew night impact edge biology regret during';
+        const keyring = new Keyring({ type: 'sr25519', ss58Format: 2 });
+        const bot = keyring.createFromUri(MNEMONIC);
 
-          const txHash = await (await fetch(`${url}/get/tokens`)).json()
-          setStatus(`Received tokens! txhash: ${txHash}`);
-          setLoading(false);
+        // Sign and send the transaction
+        const transfer = await api.tx.balances
+            .transferKeepAlive(account.address, FAUCET_AMOUNT);
+	      //Number(FAUCET_AMOUNT) / 1e2);
+
+        const txHash = await transfer.signAndSend(
+            bot,
+            ({ status: txStatus, events = [] }) => {
+              if (txStatus.isInBlock) {
+                setStatus(`Transaction included in block '${txStatus.asInBlock}'`);
+              } else if (txStatus.isFinalized) {
+                // Find transfer event and get amount
+                events.forEach(({ event: { method, section, data } }) => {
+                  if (section === 'balances' && method === 'Transfer') {
+                    const [, , amount] = data;
+                    setStatus(`Received '${(parseInt(amount) / 1e18).toFixed(4)}' tokens!`);
+                  }
+                });
+                setLoading(false);
+              }
+            }
+          );
 
           console.log(`Submitted with hash '${txHash}'`);
 
@@ -231,7 +250,7 @@ const FaucetStep = () => {
 
     const formatBalance = (balance) => {
       if (!balance) return '0';
-      return (parseInt(balance) / 1e10).toFixed(4);
+      return (parseInt(balance) / 1e18).toFixed(4);
     };
     const copyAddress = () => {
       if (account?.address) {
@@ -296,7 +315,7 @@ const Faucet = () => {
   const [openStep, setOpenStep] = useState(1);
   const [stepsCompleted, setStepsCompleted] = useState({
     1: false,
-    2: false,
+    2: false
   });
 
   const completeStep = (step) => {
@@ -310,7 +329,7 @@ const Faucet = () => {
   return (
     <div className="relative p-6 pt-10 sm:pt-10 pb-20">
       <div className="text-center relative z-[1] mb-8 max-w-2xl mx-auto">
-        <h1 className="text-3xl sm:text-5xl font-bold mb-2">QF devnet faucet</h1>
+        <h1 className="text-3xl sm:text-5xl font-bold mb-2">QF | Request Tokens </h1>
         <p className="font-light text-xs sm:text-base">Follow these steps to get started with <br /> test tokens</p>
       </div>
 
@@ -349,7 +368,7 @@ const Faucet = () => {
         <h3 className="font-semibold mb-2 text-xl">Network Information</h3>
         <div className="text-sm">
           <p><strong>RPC Endpoint:</strong> {RPC_URL}</p>
-          <p><strong>Token Amount per Request:</strong> {parseInt(FAUCET_AMOUNT) / 1e10} tokens</p>
+          <p><strong>Token Amount per Request:</strong> {parseInt(FAUCET_AMOUNT) / 1e18} tokens</p>
         </div>
       </div>
 
