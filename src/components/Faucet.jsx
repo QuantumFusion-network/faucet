@@ -2,18 +2,23 @@
 //
 //
 
-import React, { useState, useEffect } from 'react';
-import { Wallet, Copy, ExternalLink, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react';
-import { ApiPromise, WsProvider } from '@polkadot/api';
-import { web3FromSource, web3Enable, web3FromAddress } from '@polkadot/extension-dapp';
-import { Keyring } from '@polkadot/keyring';
+import React, {useState, useEffect} from 'react';
+import {Wallet, Copy, ExternalLink, ChevronDown, ChevronUp, AlertCircle} from 'lucide-react';
+import {ApiPromise, WsProvider} from '@polkadot/api';
+import {web3FromSource, web3Enable, web3FromAddress} from '@polkadot/extension-dapp';
+import {Keyring} from '@polkadot/keyring';
+import classNames from "classnames";
 
 
 const FAUCET_AMOUNT = '20000000000';
 
-const RPC_URL = 'wss://dev.qfnetwork.xyz/socket';
+const DEV_NODE_RPC = "wss://dev.qfnetwork.xyz/socket"
+const TEST_NODE_RPC = "wss://test.qfnetwork.xyz/socket"
 
-const Step = ({ number, title, children, isOpen, toggle }) => (
+const DEV_NODE_PARACHAIN_RPC = "wss://para.dev.qfnetwork.xyz/socket"
+const TEST_NODE_PARACHAIN_RPC = "wss://para.test.qfnetwork.xyz/socket"
+
+const Step = ({number, title, children, isOpen, toggle}) => (
   <div className="border rounded-xl px-5 py-4 bg-white">
     <button
       onClick={toggle}
@@ -26,7 +31,7 @@ const Step = ({ number, title, children, isOpen, toggle }) => (
         {title}
       </span>
       <div className={`transform transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>
-        <ChevronDown className="w-5 h-5" />
+        <ChevronDown className="w-5 h-5"/>
       </div>
     </button>
     <div
@@ -41,7 +46,7 @@ const Step = ({ number, title, children, isOpen, toggle }) => (
   </div>
 );
 
-const WalletStep = ({ onComplete }) => {
+const WalletStep = ({onComplete}) => {
   const [hasExtension, setHasExtension] = useState(false);
 
   const checkExtension = () => {
@@ -54,7 +59,7 @@ const WalletStep = ({ onComplete }) => {
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row items-start gap-4 mb-3">
-        <img src="/api/placeholder/128/128" alt="Extension Store" className="rounded-lg w-32 h-32" />
+        <img src="/api/placeholder/128/128" alt="Extension Store" className="rounded-lg w-32 h-32"/>
         <div className="flex-1">
           <p className="mb-4">Install the Polkadot.js extension from your browser's store:</p>
           <div className="space-y-2">
@@ -64,7 +69,7 @@ const WalletStep = ({ onComplete }) => {
               rel="noopener noreferrer"
               className="flex items-center gap-2 hover:text-black/70 underline decoration-1 underline-offset-4 "
             >
-              Chrome Web Store <ExternalLink className="w-4 h-4" />
+              Chrome Web Store <ExternalLink className="w-4 h-4"/>
             </a>
             <a
               href="https://addons.mozilla.org/en-US/firefox/addon/polkadot-js-extension/"
@@ -72,7 +77,7 @@ const WalletStep = ({ onComplete }) => {
               rel="noopener noreferrer"
               className="flex items-center gap-2 hover:text-black/70 underline decoration-1 underline-offset-4"
             >
-              Firefox Add-ons <ExternalLink className="w-4 h-4" />
+              Firefox Add-ons <ExternalLink className="w-4 h-4"/>
             </a>
           </div>
         </div>
@@ -92,7 +97,7 @@ const WalletStep = ({ onComplete }) => {
   );
 };
 
-const AccountStep = ({ onComplete }) => {
+const AccountStep = ({onComplete}) => {
   const [hasAccount, setHasAccount] = useState(false);
 
   return (
@@ -129,171 +134,172 @@ const AccountStep = ({ onComplete }) => {
   );
 };
 
-const FaucetStep = () => {
-    const [account, setAccount] = useState(null);
-    const [status, setStatus] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [balance, setBalance] = useState(null);
-    const [api, setApi] = useState(null);
+const FaucetStep = ({rpcUrl}) => {
+  const [account, setAccount] = useState(null);
+  const [status, setStatus] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [balance, setBalance] = useState(null);
+  const [api, setApi] = useState(null);
 
-    // Initialize API connection
-    useEffect(() => {
-      const initApi = async () => {
-        try {
-          const wsProvider = new WsProvider(RPC_URL);
-          const api = await ApiPromise.create({ provider: wsProvider });
-          setApi(api);
-        } catch (error) {
-          setStatus('Failed to connect to network: ' + error.message);
-        }
-      };
-
-      initApi();
-      return () => {
-        if (api) {
-          api.disconnect();
-        }
-      };
-    }, []);
-
-    // Subscribe to balance updates
-    useEffect(() => {
-      if (!api || !account) return;
-
-      let unsubscribe;
-
-      const subscribeBalance = async () => {
-        unsubscribe = await api.query.system.account(account.address, ({ data: { free: currentBalance } }) => {
-          setBalance(currentBalance.toString());
-        });
-      };
-
-      subscribeBalance();
-
-      return () => {
-        if (unsubscribe) {
-          unsubscribe();
-        }
-      };
-    }, [api, account]);
-
-    const connectWallet = async () => {
+  // Initialize API connection
+  useEffect(() => {
+    const initApi = async () => {
       try {
-        setLoading(true);
-        setStatus('Connecting to wallet...');
+        const wsProvider = new WsProvider(rpcUrl);
+        const api = await ApiPromise.create({provider: wsProvider});
+        setApi(api);
+      } catch (error) {
+        setStatus('Failed to connect to network: ' + error.message);
+      }
+    };
 
-        // Enable extension
-        const injected = await window.injectedWeb3['polkadot-js'].enable();
-        const accounts = await injected.accounts.get();
+    initApi();
+    return () => {
+      if (api) {
+        api.disconnect();
+      }
+    };
+  }, [rpcUrl]);
 
-        if (accounts.length > 0) {
-          setAccount(accounts[0]);
-          setStatus('Wallet connected!');
-        } else {
-          setStatus('No accounts found. Please create one first.');
-        }
-      } catch (err) {
-        setStatus('Failed to connect: ' + err.message);
-      } finally {
+  // Subscribe to balance updates
+  useEffect(() => {
+    if (!api || !account) return;
+
+    let unsubscribe;
+
+    const subscribeBalance = async () => {
+      unsubscribe = await api.query.system.account(account.address, ({data: {free: currentBalance}}) => {
+        setBalance(currentBalance.toString());
+      });
+    };
+
+    subscribeBalance();
+
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+  }, [api, account]);
+
+  const connectWallet = async () => {
+    try {
+      setLoading(true);
+      setStatus('Connecting to wallet...');
+
+      // Enable extension
+      const injected = await window.injectedWeb3['polkadot-js'].enable();
+      const accounts = await injected.accounts.get();
+
+      if (accounts.length > 0) {
+        setAccount(accounts[0]);
+        setStatus('Wallet connected!');
+      } else {
+        setStatus('No accounts found. Please create one first.');
+      }
+    } catch (err) {
+      setStatus('Failed to connect: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const requestTokens = async () => {
+    if (!account || !api) return;
+
+    try {
+      setLoading(true);
+      setStatus('Requesting tokens...');
+
+
+      const url = import.meta.env;
+
+      if (!url) {
+        setStatus('Api url not provided ');
         setLoading(false);
+        return
       }
-    };
 
-    const requestTokens = async () => {
-      if (!account || !api) return;
+      const txHash = await (await fetch(`${url}/get/tokens`)).json()
+      setStatus(`Received tokens! txhash: ${txHash}`);
+      setLoading(false);
 
-      try {
-          setLoading(true);
-          setStatus('Requesting tokens...');
+      console.log(`Submitted with hash '${txHash}'`);
 
+    } catch (err) {
+      console.error('Request tokens error:', err);
+      console.log('Account object:', account);
+      setStatus('Failed to request tokens: ' + err.message);
+      setLoading(false);
+    }
+  };
 
-          const url = import.meta.env;
+  const formatBalance = (balance) => {
+    if (!balance) return '0';
+    return (parseInt(balance) / 1e10).toFixed(4);
+  };
+  const copyAddress = () => {
+    if (account?.address) {
+      navigator.clipboard.writeText(account.address);
+      setStatus('Address copied!');
+    }
+  };
 
-          if(!url) {
-            setStatus('Api url not provided ');
-            setLoading(false);
-            return
-          }
-
-          const txHash = await (await fetch(`${url}/get/tokens`)).json()
-          setStatus(`Received tokens! txhash: ${txHash}`);
-          setLoading(false);
-
-          console.log(`Submitted with hash '${txHash}'`);
-
-        } catch (err) {
-          console.error('Request tokens error:', err);
-          console.log('Account object:', account);
-          setStatus('Failed to request tokens: ' + err.message);
-          setLoading(false);
-        }
-      };
-
-    const formatBalance = (balance) => {
-      if (!balance) return '0';
-      return (parseInt(balance) / 1e10).toFixed(4);
-    };
-    const copyAddress = () => {
-      if (account?.address) {
-        navigator.clipboard.writeText(account.address);
-        setStatus('Address copied!');
-      }
-    };
-
-    return (
-      <div className="space-y-4">
-        {!account ? (
-          <button
-            onClick={connectWallet}
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-4 px-2 py-3 bg-[#777777] text-white font-karla font-semibold rounded-md hover:bg-[#676767] transition-colors duration-200 disabled:opacity-50"
-          >
-            <Wallet className="w-6 h-6" />
-            Connect Wallet
-          </button>
-        ) : (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
-              <div className="truncate flex-1 font-mono text-sm">{account.address}</div>
-              <button
-                onClick={copyAddress}
-                className="ml-2 text-gray-500 hover:text-gray-700"
-              >
-                <Copy className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-3 bg-gray-50 rounded-md">
-              <div className="text-sm text-gray-600">Balance:</div>
-              <div className="text-lg font-medium">
-                {formatBalance(balance)} tokens
-              </div>
-            </div>
-
+  return (
+    <div className="space-y-4">
+      {!account ? (
+        <button
+          onClick={connectWallet}
+          disabled={loading}
+          className="w-full flex items-center justify-center gap-4 px-2 py-3 bg-[#777777] text-white font-karla font-semibold rounded-md hover:bg-[#676767] transition-colors duration-200 disabled:opacity-50"
+        >
+          <Wallet className="w-6 h-6"/>
+          Connect Wallet
+        </button>
+      ) : (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
+            <div className="truncate flex-1 font-mono text-sm">{account.address}</div>
             <button
-              onClick={requestTokens}
-              disabled={loading}
-              className="w-full p-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+              onClick={copyAddress}
+              className="ml-2 text-gray-500 hover:text-gray-700"
             >
-              {loading ? 'Processing...' : 'Request Tokens'}
+              <Copy className="w-5 h-5"/>
             </button>
           </div>
-        )}
 
-        {status && (
-          <div className={`p-3 rounded-md text-sm flex items-center gap-2 ${
-            status.includes('Failed') ? 'bg-[#C3230B20] text-[#C3230B]' : 'bg-[#A0BECC50] text-blue-700'
-          }`}>
-            <AlertCircle className="w-4 h-4" />
-            {status}
+          <div className="p-3 bg-gray-50 rounded-md">
+            <div className="text-sm text-gray-600">Balance:</div>
+            <div className="text-lg font-medium">
+              {formatBalance(balance)} tokens
+            </div>
           </div>
-        )}
-      </div>
-    );
-  };
+
+          <button
+            onClick={requestTokens}
+            disabled={loading}
+            className="w-full p-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+          >
+            {loading ? 'Processing...' : 'Request Tokens'}
+          </button>
+        </div>
+      )}
+
+      {status && (
+        <div className={`p-3 rounded-md text-sm flex items-center gap-2 ${
+          status.includes('Failed') ? 'bg-[#C3230B20] text-[#C3230B]' : 'bg-[#A0BECC50] text-blue-700'
+        }`}>
+          <AlertCircle className="w-4 h-4"/>
+          {status}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const Faucet = () => {
   const [openStep, setOpenStep] = useState(1);
+  const [rpcUrl, setRpcUrl] = useState(DEV_NODE_RPC)
   const [stepsCompleted, setStepsCompleted] = useState({
     1: false,
     2: false,
@@ -307,11 +313,13 @@ const Faucet = () => {
     setOpenStep(step + 1);
   };
 
+  const onChangeRpc = (rpc) => () => setRpcUrl(rpc)
+
   return (
     <div className="relative p-6 pt-10 sm:pt-10 pb-20">
       <div className="text-center relative z-[1] mb-8 max-w-2xl mx-auto">
         <h1 className="text-3xl sm:text-5xl font-bold mb-2">QF devnet faucet</h1>
-        <p className="font-light text-xs sm:text-base">Follow these steps to get started with <br /> test tokens</p>
+        <p className="font-light text-xs sm:text-base">Follow these steps to get started with <br/> test tokens</p>
       </div>
 
       <div className="space-y-4 relative z-[1] max-w-2xl mx-auto">
@@ -321,7 +329,7 @@ const Faucet = () => {
           isOpen={openStep === 1}
           toggle={() => setOpenStep(openStep === 1 ? null : 1)}
         >
-          <WalletStep onComplete={() => completeStep(1)} />
+          <WalletStep onComplete={() => completeStep(1)}/>
         </Step>
 
         <Step
@@ -330,7 +338,7 @@ const Faucet = () => {
           isOpen={openStep === 2}
           toggle={() => setOpenStep(openStep === 2 ? null : 2)}
         >
-          <AccountStep onComplete={() => completeStep(2)} />
+          <AccountStep onComplete={() => completeStep(2)}/>
         </Step>
 
         <Step
@@ -339,21 +347,50 @@ const Faucet = () => {
           isOpen={openStep === 3}
           toggle={() => setOpenStep(openStep === 3 ? null : 3)}
         >
-          <FaucetStep />
+          <FaucetStep rpcUrl={rpcUrl}/>
         </Step>
       </div>
 
 
-<div className="h-[1px] bg-[#DCDCDC] mt-8 w-[90%] mx-auto"></div>
+      <div className="h-[1px] bg-[#DCDCDC] mt-8 w-[90%] mx-auto"/>
       <div className="mt-8 p-5 relative z-[1] bg-white max-w-2xl mx-auto rounded-2xl border border-black">
         <h3 className="font-semibold mb-2 text-xl">Network Information</h3>
         <div className="text-sm">
-          <p><strong>RPC Endpoint:</strong> {RPC_URL}</p>
+          <p><strong>RPC Endpoint:</strong> {rpcUrl}</p>
           <p><strong>Token Amount per Request:</strong> {parseInt(FAUCET_AMOUNT) / 1e10} tokens</p>
         </div>
       </div>
+      <div className="mt-8 p-5 relative z-[1] bg-white max-w-2xl mx-auto rounded-2xl border border-black">
+        <h3 className="font-semibold mb-2 text-xl">Change rpc node</h3>
+        <div className="w-full flex flex-wrap items-start justify-between">
+          <div
+            onClick={onChangeRpc(DEV_NODE_RPC)}
+            className={classNames("text-sm mb-3 w-[48%] cursor-pointer p-2", {'rounded-lg border bg-[#F5F4F4]': rpcUrl === DEV_NODE_RPC})}>
+            <p><strong>RPC Endpoint:</strong> {DEV_NODE_RPC}</p>
+            <p><strong>Token Amount per Request:</strong> {parseInt(FAUCET_AMOUNT) / 1e10} tokens</p>
+          </div>
+          <div
+            onClick={onChangeRpc(TEST_NODE_RPC)}
+            className={classNames("text-sm mb-3 w-[48%] cursor-pointer p-2", {'rounded-lg border bg-[#F5F4F4]': rpcUrl === TEST_NODE_RPC})}>
+            <p><strong>RPC Endpoint:</strong> {TEST_NODE_RPC}</p>
+            <p><strong>Token Amount per Request:</strong> {parseInt(FAUCET_AMOUNT) / 1e10} tokens</p>
+          </div>
+          <div
+            onClick={onChangeRpc(DEV_NODE_PARACHAIN_RPC)}
+            className={classNames("text-sm mb-3 w-[48%] cursor-pointer p-2", {'rounded-lg border bg-[#F5F4F4]': rpcUrl === DEV_NODE_PARACHAIN_RPC})}>
+            <p><strong>RPC Endpoint:</strong> {DEV_NODE_PARACHAIN_RPC}</p>
+            <p><strong>Token Amount per Request:</strong> {parseInt(FAUCET_AMOUNT) / 1e10} tokens</p>
+          </div>
+          <div
+            onClick={onChangeRpc(TEST_NODE_PARACHAIN_RPC)}
+            className={classNames("text-sm mb-3 w-[48%] cursor-pointer p-2", {'rounded-lg border bg-[#F5F4F4]': rpcUrl === TEST_NODE_PARACHAIN_RPC})}>
+            <p><strong>RPC Endpoint:</strong> {TEST_NODE_PARACHAIN_RPC}</p>
+            <p><strong>Token Amount per Request:</strong> {parseInt(FAUCET_AMOUNT) / 1e10} tokens</p>
+          </div>
+        </div>
+      </div>
 
-      <img src="/circle.webp" alt="" className='absolute md:top-0 top-16 w-[35%] left-0 z-[0] md:w-[25%] max-w-sm' />
+      <img src="/circle.webp" alt="" className='absolute md:top-0 top-16 w-[35%] left-0 z-[0] md:w-[25%] max-w-sm'/>
       <div className='h-[40%] bg-gradient-to-b from-[#C3230B] top-1/2 to-[#D6AE10] fixed right-0 w-3'></div>
     </div>
   );
