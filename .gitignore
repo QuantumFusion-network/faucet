@@ -1,3 +1,4 @@
 dist/
 node_modules/
 qf-faucet-server/target
+.idea
